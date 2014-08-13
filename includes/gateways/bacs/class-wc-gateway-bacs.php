@@ -1,28 +1,39 @@
 <?php
+/*
+Plugin Name: YEWS WooCommerce BACS
+Plugin URI: http://yews.com.au/small-business-web-design/
+Description: customisation of bacs woocommerce gateway
+Version: 1.0
+Author: YEWS
+Author URI: http://yews.com.au/small-business-web-design/
+*/
 
-if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+add_action('plugins_loaded', 'init_my_gateway_class', 0);
 
-/**
- * Bank Transfer Payment Gateway
- *
- * Provides a Bank Transfer Payment Gateway. Based on code by Mike Pepper.
- *
- * @class 		WC_Gateway_BACS
- * @extends		WC_Payment_Gateway
- * @version		2.1.0
- * @package		WooCommerce/Classes/Payment
- * @author 		WooThemes
- */
-class WC_Gateway_BACS extends WC_Payment_Gateway {
+function init_my_gateway_class() {
+
+add_filter('woocommerce_payment_gateways', 'add_this_class_to_gateway_class');
 
     /**
-     * Constructor for the gateway.
-     */
+    * @param array $methods
+    * @return string
+    */
+    function add_this_class_to_gateway_class($methods){
+        $methods[] = 'WC_Gateway_BACS';
+        return $methods;
+    }
+
+class WC_Gateway_BACS extends WC_Payment_Gateway {
+       /**
+        * Here you can create your own payment gateway
+        * defining the specs on the constructor.
+        **/
+
     public function __construct() {
-		$this->id                 = 'bacs';
+		$this->id                 = 'yewsbacs';
 		$this->icon               = apply_filters('woocommerce_bacs_icon', '');
 		$this->has_fields         = false;
-		$this->method_title       = __( 'BACS', 'woocommerce' );
+		$this->method_title       = __( 'YEWSBACS', 'woocommerce' );
 		$this->method_description = __( 'Allows payments by BACS, more commonly known as direct bank/wire transfer.', 'woocommerce' );
 
 		// Load the settings.
@@ -39,6 +50,7 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 			array(
 				array(
 					'account_name'   => $this->get_option( 'account_name' ),
+                                        'bsb'            => $this->get_option( 'bsb' ),
 					'account_number' => $this->get_option( 'account_number' ),
 					'sort_code'      => $this->get_option( 'sort_code' ),
 					'bank_name'      => $this->get_option( 'bank_name' ),
@@ -51,10 +63,12 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 		// Actions
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'save_account_details' ) );
-    	add_action( 'woocommerce_thankyou_bacs', array( $this, 'thankyou_page' ) );
+    	
+add_action( 'woocommerce_thankyou_bacs', array( $this, 'thankyou_page' ) );
 
     	// Customer Emails
-    	add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
+add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
+        
     }
 
     /**
@@ -107,8 +121,9 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 			    <table class="widefat wc_input_table sortable" cellspacing="0">
 		    		<thead>
 		    			<tr>
-		    				<th class="sort">&nbsp;</th>
-		    				<th><?php _e( 'Account Name', 'woocommerce' ); ?></th>
+		    			<th class="sort">&nbsp;</th>
+		    			<th><?php _e( 'Account Name', 'woocommerce' ); ?></th>
+                                        <th><?php _e( 'BSB', 'woocommerce' ); ?></th>
 			            	<th><?php _e( 'Account Number', 'woocommerce' ); ?></th>
 			            	<th><?php _e( 'Bank Name', 'woocommerce' ); ?></th>
 			            	<th><?php _e( 'Sort Code', 'woocommerce' ); ?></th>
@@ -116,6 +131,11 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 			            	<th><?php _e( 'BIC / Swift', 'woocommerce' ); ?></th>
 		    			</tr>
 		    		</thead>
+		    		<tfoot>
+		    			<tr>
+		    				<th colspan="7"><a href="#" class="add button"><?php _e( '+ Add Account', 'woocommerce' ); ?></a> <a href="#" class="remove_rows button"><?php _e( 'Remove selected account(s)', 'woocommerce' ); ?></a></th>
+		    			</tr>
+		    		</tfoot>
 		    		<tbody class="accounts">
 		            	<?php
 		            	$i = -1;
@@ -126,8 +146,10 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 		                		echo '<tr class="account">
 		                			<td class="sort"></td>
 		                			<td><input type="text" value="' . esc_attr( $account['account_name'] ) . '" name="bacs_account_name[' . $i . ']" /></td>
+                                                        <td><input type="text" value="' . esc_attr( $account['bsb'] ) . '" name="bacs_bsb[' . $i . ']" /></td>
 		                			<td><input type="text" value="' . esc_attr( $account['account_number'] ) . '" name="bacs_account_number[' . $i . ']" /></td>
 		                			<td><input type="text" value="' . esc_attr( $account['bank_name'] ) . '" name="bacs_bank_name[' . $i . ']" /></td>
+
 		                			<td><input type="text" value="' . esc_attr( $account['sort_code'] ) . '" name="bacs_sort_code[' . $i . ']" /></td>
 		                			<td><input type="text" value="' . esc_attr( $account['iban'] ) . '" name="bacs_iban[' . $i . ']" /></td>
 		                			<td><input type="text" value="' . esc_attr( $account['bic'] ) . '" name="bacs_bic[' . $i . ']" /></td>
@@ -136,11 +158,6 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 		            	}
 		            	?>
 		        	</tbody>
-		    		<tfoot>
-		    			<tr>
-		    				<th colspan="7"><a href="#" class="add button"><?php _e( '+ Add Account', 'woocommerce' ); ?></a> <a href="#" class="remove_rows button"><?php _e( 'Remove selected account(s)', 'woocommerce' ); ?></a></th>
-		    			</tr>
-		    		</tfoot>
 		        </table>
 		       	<script type="text/javascript">
 					jQuery(function() {
@@ -151,6 +168,7 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 							jQuery('<tr class="account">\
 		                			<td class="sort"></td>\
 		                			<td><input type="text" name="bacs_account_name[' + size + ']" /></td>\
+                                                        <td><input type="text" name="bacs_bsb[' + size + ']" /></td>\
 		                			<td><input type="text" name="bacs_account_number[' + size + ']" /></td>\
 		                			<td><input type="text" name="bacs_bank_name[' + size + ']" /></td>\
 		                			<td><input type="text" name="bacs_sort_code[' + size + ']" /></td>\
@@ -177,10 +195,11 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
     	if ( isset( $_POST['bacs_account_name'] ) ) {
 
 			$account_names   = array_map( 'wc_clean', $_POST['bacs_account_name'] );
+			$bsb             = array_map( 'wc_clean', $_POST['bacs_bsb'] );
 			$account_numbers = array_map( 'wc_clean', $_POST['bacs_account_number'] );
 			$bank_names      = array_map( 'wc_clean', $_POST['bacs_bank_name'] );
 			$sort_codes      = array_map( 'wc_clean', $_POST['bacs_sort_code'] );
-			$ibans           = array_map( 'wc_clean', $_POST['bacs_iban'] );
+        		$ibans           = array_map( 'wc_clean', $_POST['bacs_iban'] );
 			$bics            = array_map( 'wc_clean', $_POST['bacs_bic'] );
 
 			foreach ( $account_names as $i => $name ) {
@@ -190,9 +209,10 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 
 	    		$accounts[] = array(
 	    			'account_name'   => $account_names[ $i ],
+					'bsb'            => $bsb[ $i ],
 					'account_number' => $account_numbers[ $i ],
 					'bank_name'      => $bank_names[ $i ],
-					'sort_code'      => $sort_codes[ $i ],
+                                        'sort_code'      => $sort_codes[ $i ],
 					'iban'           => $ibans[ $i ],
 					'bic'            => $bics[ $i ]
 	    		);
@@ -221,8 +241,9 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
      * @param bool $plain_text
      * @return void
      */
+
     public function email_instructions( $order, $sent_to_admin, $plain_text = false ) {
-    	if ( ! $sent_to_admin && 'bacs' === $order->payment_method && $order->has_status( 'on-hold' ) ) {
+    	if ( ! $sent_to_admin && 'bacs' === $order->payment_method && 'on-hold' === $order->status ) {
 			if ( $this->instructions ) {
 				echo wpautop( wptexturize( $this->instructions ) ) . PHP_EOL;
 			}
@@ -233,7 +254,9 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
     /**
      * Get bank details and place into a list format
      */
-    private function bank_details( $order_id = '' ) {
+
+
+   private function bank_details( $order_id = '' ) {
     	if ( empty( $this->account_details ) ) {
     		return;
     	}
@@ -242,35 +265,58 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 
     	$bacs_accounts = apply_filters( 'woocommerce_bacs_accounts', $this->account_details );
 
-    	if ( ! empty( $bacs_accounts ) ) {
+if ( ! empty( $bacs_accounts ) ) {
 	    	foreach ( $bacs_accounts as $bacs_account ) {
-	    		$bacs_account = (object) $bacs_account;
-
-				if ( $bacs_account->account_name || $bacs_account->bank_name ) {
-					echo '<h3>' . implode( ' - ', array_filter( array( $bacs_account->account_name, $bacs_account->bank_name ) ) ) . '</h3>' . PHP_EOL;
-				}
-
 	    		echo '<ul class="order_details bacs_details">' . PHP_EOL;
 
-	    		// BACS account fields shown on the thanks page and in emails
+	    		$bacs_account = (object) $bacs_account;
+
+
 				$account_fields = apply_filters( 'woocommerce_bacs_account_fields', array(
+
+                                        'account_name'	=> array(
+						'label' => __( 'Account Name', 'woocommerce' ),
+						'value' => $bacs_account->account_name
+					),
+
+                                        'bank_name'	=> array(
+						'label' => __( 'Bank Name', 'woocommerce' ),
+						'value' => $bacs_account->bank_name
+					),
+
+
+					'bsb'		=> array(
+						'label' => __( 'bsb', 'woocommerce' ),
+						'value' => $bacs_account->bsb
+					),
+
+
 					'account_number'=> array(
 						'label' => __( 'Account Number', 'woocommerce' ),
 						'value' => $bacs_account->account_number
 					),
+
+
 					'sort_code'		=> array(
 						'label' => __( 'Sort Code', 'woocommerce' ),
 						'value' => $bacs_account->sort_code
 					),
+
+
 					'iban'			=> array(
 						'label' => __( 'IBAN', 'woocommerce' ),
 						'value' => $bacs_account->iban
 					),
+
 					'bic'			=> array(
-						'label' => __( 'BIC', 'woocommerce' ),
+						'label' => __( 'SWIFT code (for international orders only)', 'woocommerce' ),
 						'value' => $bacs_account->bic
 					)
 				), $order_id );
+
+				if ( $bacs_account->account_name || $bacs_account->bank_name ) {
+					echo '<h3>' . implode( ' - ', array_filter( array( $bacs_account->account_name, $bacs_account->bank_name ) ) ) . '</h3>' . PHP_EOL;
+				}
 
 	    		foreach ( $account_fields as $field_key => $field ) {
 				    if ( ! empty( $field['value'] ) ) {
@@ -283,6 +329,8 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 	    }
     }
 
+
+
     /**
      * Process the payment and return the result
      *
@@ -291,7 +339,7 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
      */
     public function process_payment( $order_id ) {
 
-		$order = get_order( $order_id );
+		$order = new WC_Order( $order_id );
 
 		// Mark as on-hold (we're awaiting the payment)
 		$order->update_status( 'on-hold', __( 'Awaiting BACS payment', 'woocommerce' ) );
@@ -309,3 +357,5 @@ class WC_Gateway_BACS extends WC_Payment_Gateway {
 		);
     }
 }
+}
+?>
